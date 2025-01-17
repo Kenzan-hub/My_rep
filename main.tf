@@ -151,13 +151,13 @@ resource "aws_security_group" "ec2_security_group" {
   }
 }
 
-# Appliquer ce Security Group au Load Balancer
+# Créer un Load Balancer avec deux sous-réseaux
 resource "aws_lb" "main_lb" {
   name               = "my-app-lb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.ec2_sg.id]  # Applique le même SG
-  subnets            = [aws_subnet.public_subnet.id]
+  security_groups    = [aws_security_group.ec2_security_group.id]  # Correction : nom du SG mis à jour
+  subnets            = [aws_subnet.public_subnet.id, aws_subnet.private_subnet_1.id] # Ajout du 2ème sous-réseau
   enable_deletion_protection = false
 
   tags = {
@@ -167,7 +167,7 @@ resource "aws_lb" "main_lb" {
 
 # Récupérer la clé SSH pour l'authentification
 data "aws_key_pair" "vockey" {
-  key_name   = "vockey"
+  key_name = "vockey"
 }
 
 # Créer une instance EC2 publique POUR SITE WEB
@@ -196,7 +196,6 @@ resource "aws_instance" "ec2_instance_public" {
     Name = "my-ec2-instance-public"
   }
 }
-
 
 # Créer une instance EC2 privée
 resource "aws_instance" "ec2_instance_private" {
@@ -239,8 +238,8 @@ resource "aws_route" "private_route" {
   nat_gateway_id         = aws_nat_gateway.nat_gateway.id
 }
 
-#Créer un Target Group
-resource "aws_lb_target_group" "app_tg" {
+# Créer un Target Group
+resource "aws_lb_target_group" "main_target_group" {
   name     = "my-app-target-group"
   port     = 80
   protocol = "HTTP"
@@ -260,8 +259,7 @@ resource "aws_lb_target_group" "app_tg" {
   }
 }
 
-
-#Créer un Listener pour le Load Balancer(gère le trafic entrant vers l'ALB, qui est ensuite envoyé au Target Group)
+# Créer un Listener pour le Load Balancer
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main_lb.arn
   port              = "80"
@@ -269,21 +267,19 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app_tg.arn
+    target_group_arn = aws_lb_target_group.main_target_group.arn
   }
 }
 
-#Attacher les instances au target group
-# Attacher l'instance EC2 publique
+# Attacher les instances au Target Group
 resource "aws_lb_target_group_attachment" "ec2_instance_public_attachment" {
-  target_group_arn = aws_lb_target_group.main_target_group.arn # ARN du Target Group
-  target_id        = aws_instance.ec2_instance_public.id      # ID de l'instance EC2 publique
-  port             = 80                                       # Port sur lequel l'instance écoute (ici HTTP)
+  target_group_arn = aws_lb_target_group.main_target_group.arn
+  target_id        = aws_instance.ec2_instance_public.id
+  port             = 80
 }
 
-# Attacher l'instance EC2 privée
 resource "aws_lb_target_group_attachment" "ec2_instance_private_attachment" {
-  target_group_arn = aws_lb_target_group.main_target_group.arn # ARN du Target Group
-  target_id        = aws_instance.ec2_instance_private.id     # ID de l'instance EC2 privée
-  port             = 80                                       # Port sur lequel l'instance écoute (ici HTTP)
+  target_group_arn = aws_lb_target_group.main_target_group.arn
+  target_id        = aws_instance.ec2_instance_private.id
+  port             = 80
 }
