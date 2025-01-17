@@ -7,6 +7,7 @@ pipeline {
 
     parameters {
         // Parameters
+        // test
         booleanParam(name: 'destroy', defaultValue: false, description: 'True pour détruire et False pour créer')
     }
 
