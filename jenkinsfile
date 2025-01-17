@@ -53,12 +53,17 @@ pipeline {
 
 
 stages {
-    stage('prepare:destroy_or_create') {
+    stage('confirm:destroy_or_create') {
         steps {
             script {
+                // Demande explicitement si tu veux détruire ou créer l'infrastructure
+                def destroyChoice = input(id: 'confirmDestroyOrCreate', message: "Veux-tu détruire l'infrastructure ou la créer ?", parameters: [
+                    booleanParam(defaultValue: false, description: 'True pour détruire, False pour créer', name: 'DESTROY')
+                ])
+                
                 // Si DESTROY est à true (case cochée), on demande une confirmation avant de détruire l'infrastructure
-                if (params.DESTROY == true) {
-                    input(id: 'confirmDestroy', message: "T es sûre de vouloir detruire ton infra?", ok: 'oui', cancel: 'non')
+                if (destroyChoice) {
+                    input(id: 'confirmDestroy', message: "T es sûre de vouloir détruire ton infra?", ok: 'oui', cancel: 'non')
                     // Si confirmé, on détruit l'infrastructure avec terraform destroy
                     sh 'terraform destroy -auto-approve'
                 } else {
@@ -106,6 +111,7 @@ stages {
         }
     }
 }
+
 
 
     post { 
